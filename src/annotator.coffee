@@ -307,7 +307,12 @@ class Annotator extends Delegator
     for normed in normedRanges
       annotation.quote.push      $.trim(normed.text())
       annotation.ranges.push     normed.serialize(@wrapper[0], '.annotator-hl')
-      $.merge annotation.highlights, this.highlightRange(normed)
+
+      # per: http://lists.okfn.org/pipermail/annotator-dev/2011-September/000099.html
+      hlElems = this.highlightRange(normed)
+      if annotation.id? 
+        $(hlElems).attr('id', annotation.id)
+      $.merge annotation.highlights, hlElems
 
     # Join all the quotes into one string.
     annotation.quote = annotation.quote.join(' / ')
