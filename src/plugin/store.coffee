@@ -29,7 +29,7 @@ class Annotator.Plugin.Store extends Annotator.Plugin
   options:
 
     # This is the API endpoint. If the server supports Cross Origin Resource
-    # Sharring (CORS) a full URL can be used here.
+    # Sharing (CORS) a full URL can be used here.
     prefix: '/store'
 
     # Fetch the latest annotations on plugin initialisation.

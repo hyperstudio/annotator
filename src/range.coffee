@@ -314,7 +314,7 @@ class Range.SerializedRange
   #       startOffset: The offset to the start of the selection from obj.start.
   #       end:         An xpath to the Element containing the last TextNode
   #                    relative to the root Element.
-  #       startOffset: The offset to the end of the selection from obj.end.
+  #       endOffset: The offset to the end of the selection from obj.end.
   #
   # Returns an instance of SerializedRange
   constructor: (obj) ->
