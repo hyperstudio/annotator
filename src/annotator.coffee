@@ -307,12 +307,12 @@ class Annotator extends Delegator
     for normed in normedRanges
       annotation.quote.push      $.trim(normed.text())
       annotation.ranges.push     normed.serialize(@wrapper[0], '.annotator-hl')
+      $.merge annotation.highlights, this.highlightRange(normed, 'annotator-hl', annotation.id)
 
       # per: http://lists.okfn.org/pipermail/annotator-dev/2011-September/000099.html
-      hlElems = this.highlightRange(normed)
-      if annotation.id? 
-        $(hlElems).attr('id', annotation.id)
-      $.merge annotation.highlights, hlElems
+      # hlElems = this.highlightRange(normed, "annotator-hl", annotation.id)
+      # $(hlElems).attr('id', annotation.id)
+      # $.merge annotation.highlights, hlElems
 
     # Join all the quotes into one string.
     annotation.quote = annotation.quote.join(' / ')
@@ -404,12 +404,13 @@ class Annotator extends Delegator
   #
   # normedRange - A NormalizedRange to be highlighted.
   # cssClass - A CSS class to use for the highlight (default: 'annotator-hl')
+  # idValue - The id of the annotation to use for the highlight (default: '1')
   #
   # Returns an array of highlight Elements.
-  highlightRange: (normedRange, cssClass='annotator-hl') ->
+  highlightRange: (normedRange, cssClass='annotator-hl', idValue='1') ->
     white = /^\s*$/
 
-    hl = $("<span class='#{cssClass}'></span>")
+    hl = $("<span class='#{cssClass}' id='#{idValue}'></span>")
 
     # Ignore text nodes that contain only whitespace characters. This prevents
     # spans being injected between elements that can only contain a restricted
@@ -425,10 +426,10 @@ class Annotator extends Delegator
   # cssClass - A CSS class to use for the highlight (default: 'annotator-hl')
   #
   # Returns an array of highlight Elements.
-  highlightRanges: (normedRanges, cssClass='annotator-hl') ->
+  highlightRanges: (normedRanges, cssClass='annotator-hl', idValue='1') ->
     highlights = []
     for r in normedRanges
-      $.merge highlights, this.highlightRange(r, cssClass)
+      $.merge highlights, this.highlightRange(r, cssClass, idValue)
     highlights
 
   # Public: Registers a plugin with the Annotator. A plugin can only be
