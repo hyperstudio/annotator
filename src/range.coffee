@@ -39,7 +39,23 @@ Range.sniff = (r) ->
 # Returns the Node if found otherwise null.
 Range.nodeFromXPath = (xpath, root=document) ->
   evaluateXPath = (xp, nsResolver=null) ->
-    document.evaluate('.' + xp, root, nsResolver, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
+    try
+      document.evaluate('.' + xp, root, nsResolver, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
+    catch exception
+      # There are cases when the evaluation fails, because the
+      # HTML documents contains nodes with invalid names,
+      # for example tags with equal signs in them, or something like that.
+      # In these cases, the XPath expressions will have these abominations,
+      # too, and then they can not be evaluated.
+      # In these cases, we get an XPathException, with error code 52.
+      # See http://www.w3.org/TR/DOM-Level-3-XPath/xpath.html#XPathException
+      # This does not necessarily make any sense, but this what we see
+      # happening.
+      console.log "XPath evaluation failed."
+      console.log "Trying fallback..."
+      # We have a an 'evaluator' for the really simple expressions that
+      # should work for the simple expressions we generate.
+      Util.nodeFromXPath(xp, root)
 
   if not $.isXMLDoc document.documentElement
     evaluateXPath xpath
@@ -123,8 +139,7 @@ class Range.BrowserRange
       node = this[p + 'Container']
       offset = this[p + 'Offset']
 
-      # elementNode nodeType == 1
-      if node.nodeType is 1
+      if node.nodeType is Node.ELEMENT_NODE
         # Get specified node.
         it = node.childNodes[offset]
         # If it doesn't exist, that means we need the end of the
@@ -134,12 +149,11 @@ class Range.BrowserRange
         # if node doesn't have any children, it's a <br> or <hr> or
         # other self-closing tag, and we actually want the textNode
         # that ends just before it
-        if node.nodeType is 1 and not node.firstChild
+        if node.nodeType is Node.ELEMENT_NODE and not node.firstChild
           it = null # null out ref to node so offset is correctly calculated below.
           node = node.previousSibling
 
-        # textNode nodeType == 3
-        while node.nodeType isnt 3
+        while node.nodeType isnt Node.TEXT_NODE
           node = node.firstChild
 
         offset = if it then 0 else node.nodeValue.length
@@ -160,8 +174,7 @@ class Range.BrowserRange
 
     # Make sure the common ancestor is an element node.
     nr.commonAncestor = @commonAncestorContainer
-    # elementNode nodeType == 1
-    while nr.commonAncestor.nodeType isnt 1
+    while nr.commonAncestor.nodeType isnt Node.ELEMENT_NODE
       nr.commonAncestor = nr.commonAncestor.parentNode
 
     new Range.NormalizedRange(nr)
@@ -243,8 +256,8 @@ class Range.NormalizedRange
       else
         origParent = $(node).parent()
 
-      xpath = origParent.xpath(root)[0]
-      textNodes = origParent.textNodes()
+      xpath = Util.xpathFromNode(origParent, root)[0]
+      textNodes = Util.getTextNodes(origParent)
 
       # Calculate real offset as the combined length of all the
       # preceding textNode siblings. We include the length of the
@@ -281,7 +294,7 @@ class Range.NormalizedRange
   #
   # Returns an Array of TextNode instances.
   textNodes: ->
-    textNodes = $(this.commonAncestor).textNodes()
+    textNodes = Util.getTextNodes($(this.commonAncestor))
     [start, end] = [textNodes.index(this.start), textNodes.index(this.end)]
     # Return the textNodes that fall between the start and end indexes.
     $.makeArray textNodes[start..end]
@@ -345,7 +358,7 @@ class Range.SerializedRange
       # the combined length of the textNodes to that point exceeds or
       # matches the value of the offset.
       length = 0
-      for tn in $(node).textNodes()
+      for tn in Util.getTextNodes($(node))
         if (length + tn.nodeValue.length >= this[p + 'Offset'])
           range[p + 'Container'] = tn
           range[p + 'Offset'] = this[p + 'Offset'] - length
@@ -387,7 +400,7 @@ class Range.SerializedRange
                  # Everyone else
                  (a, b) -> a.compareDocumentPosition(b) & 16
 
-    $(range.startContainer).parents().reverse().each ->
+    $(range.startContainer).parents().each ->
       if contains(this, range.endContainer)
         range.commonAncestorContainer = this
         return false

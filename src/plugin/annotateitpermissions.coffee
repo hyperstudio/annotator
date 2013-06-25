@@ -58,6 +58,8 @@ class Annotator.Plugin.AnnotateItPermissions extends Annotator.Plugin.Permission
           return true
         else
           return false
+      else
+        return false
 
     # Default permissions for all annotations. Anyone can
     # read, but only annotation owners can update/delete/admin.
@@ -82,9 +84,11 @@ class Annotator.Plugin.AnnotateItPermissions extends Annotator.Plugin.Permission
   #
   # Returns nothing.
   addFieldsToAnnotation: (annotation) =>
-    super
-    if annotation and @user
-      annotation.consumer = @user.consumerKey
+    if annotation
+      annotation.permissions = @options.permissions
+      if @user
+        annotation.user = @user.userId
+        annotation.consumer = @user.consumerKey
 
   # Field callback: Updates the state of the "anyone can…" checkboxes
   #
