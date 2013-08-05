@@ -8,6 +8,22 @@ testData = [
   [ 9,           7,   12,          11,  "Level 2\n\n\n  Lorem ipsum",                        "Spanning multiple nodes, textNode refs." ]
   [ '/p',        0,   '/p',        8,   "Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Vestibulum tortor quam, feugiat vitae, ultricies eget, tempor sit amet, ante. Donec eu libero sit amet quam egestas semper. Aenean ultricies mi vitae est. Mauris placerat eleifend leo. Quisque sit amet est et sapien ullamcorper pharetra. Vestibulum erat wisi, condimentum sed, commodo vitae, ornare sit amet, wisi. Aenean fermentum, elit eget tincidunt condimentum, eros ipsum rutrum orci, sagittis tempus lacus enim ac dui. Donec non enim in turpis pulvinar facilisis. Ut felis.", "Spanning multiple nodes, elementNode refs." ]
   [ '/p[2]',     0,   '/p[2]',     1,   "Lorem sed do eiusmod tempor.",                      "Full node contents with empty node at end."]
+  [ "/div/text()[2]",0,"/div/text()[2]",28,"Lorem sed do eiusmod tempor.",                   "Text between br tags, textNode refs"]
+  [ "/div/text()[2]",0,"/div",     4,"Lorem sed do eiusmod tempor.",                         "Text between br tags, elementNode ref at end"]
+  [ "/div/text()[2]",0,"/div",     5,"Lorem sed do eiusmod tempor.",                         "Text between br tags, with <br/> at end"]
+  [ "/div/text()[2]",0,"/div",     6,"Lorem sed do eiusmod tempor.",                         "Text between br tags, with <br/><br/> at end"]
+  [ "/div/text()[2]",0,"/div",     7,"Lorem sed do eiusmod tempor.",                         "Text between br tags, with <br/><br/><br/> at end"]
+  [ "/div",      3,"/div/text()[2]",28,"Lorem sed do eiusmod tempor.",                       "Text between br tags, elementNode ref at start"]
+  [ "/div",      2,"/div/text()[2]",28,"Lorem sed do eiusmod tempor.",                       "Text between br tags, with <br/> at start"]
+  [ "/div",      1,"/div/text()[2]",28,"Lorem sed do eiusmod tempor.",                       "Text between br tags, with <br/><br/> at start"]
+  [ "/div[2]/text()[2]",0,"/div[2]/text()[2]",28,"Lorem sed do eiusmod tempor.",             "Text between br tags, textNode refs"]
+  [ "/div[2]/text()[2]",0,"/div[2]",4,"Lorem sed do eiusmod tempor.",                        "Text between br tags, elementNode ref at end"]
+  [ "/div[2]/text()[2]",0,"/div[2]",5,"Lorem sed do eiusmod tempor.",                        "Text between br tags, with <br/> at end"]
+  [ "/div[2]/text()[2]",0,"/div[2]",6,"Lorem sed do eiusmod tempor.",                        "Text between br tags, with <br/><p><br/></p> at end"]
+  [ "/div[2]/text()[2]",0,"/div[2]",7,"Lorem sed do eiusmod tempor.",                        "Text between br tags, with <br/><p><br/></p><br/> at end"]
+  [ "/div[2]",   3,"/div[2]/text()[2]",28,"Lorem sed do eiusmod tempor.",                    "Text between br tags, elementNode ref at start"]
+  [ "/div[2]",   2,"/div[2]/text()[2]",28,"Lorem sed do eiusmod tempor.",                    "Text between br tags, with <p><br/></p> at the start"]
+  [ "/div[2]",   1,"/div[2]/text()[2]",28,"Lorem sed do eiusmod tempor.",                    "Text between br tags, with <br/><p><br/></p> at the start"]
 ]
 
 describe 'Range', ->
@@ -35,11 +51,18 @@ describe 'Range', ->
 
   describe "SerializedRange", ->
     beforeEach ->
+        
+      # This is needed so that we can read ranges via selection API  
+      $(fix()).show()
+
       r = new Range.SerializedRange
         start: "/p/strong"
         startOffset: 13
         end: "/p/strong"
         endOffset: 27
+
+    afterEach ->
+      $(fix()).hide()        
 
     describe "normalize", ->
       it "should return a normalized range", ->
@@ -52,6 +75,33 @@ describe 'Range', ->
         norm = r.normalize(fix())
         assert.isTrue(norm instanceof Range.NormalizedRange)
         assert.equal(norm.text(), "Pellentesque habitant morbi")
+
+      it "should always find the right text elements, based on offset", ->
+
+        # Create a normalized range to find the text node.
+        # This will split text nodes.
+        norm = r.normalize fix()
+
+        # We should get the usual text
+        assert.equal(norm.start.data, "habitant morbi")
+        assert.equal(norm.text(), "habitant morbi")
+        assert.equal(Util.readRangeViaSelection(norm), "habitant morbi")
+
+        # Now let's insert a <hr /> tag before and after the text node!
+        # (Since the <hr /> tag is not a text node, this should not change
+        # the text nodes and their offsets.)
+        hr1 = document.createElement "hr"
+        hr2 = document.createElement "hr"
+        norm.start.parentNode.insertBefore hr1, norm.start
+        norm.start.parentNode.insertBefore hr2, norm.start.nextSibling
+
+        # Now let's try to normalize the same range again,
+        # this time working with the text nodes already split by last action
+        norm = r.normalize fix()
+
+        # We should get the same text as last time:
+        assert.equal(Util.readRangeViaSelection(norm), "habitant morbi")
+        assert.equal(norm.text(), "habitant morbi")
 
       it "should raise Range.RangeError if it cannot normalize the range", ->
         check = false
